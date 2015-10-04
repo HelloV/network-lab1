@@ -101,13 +101,13 @@ namespace TcpSendFiles
         /// Запускает сервер, прослушивающий все IP адреса, и одновременно
         /// метод асинхронного принятия (акцептирования) клиентов.
         /// </summary>
-        public void StartServer()
+        public void StartServer(string serverPort)
         {
             if (modeNetwork == Mode.indeterminately)
             {
                 try
                 {
-                    _tcpListener = new TcpListener(IPAddress.Any, 15000);
+                    _tcpListener = new TcpListener(IPAddress.Any, Int32.Parse(serverPort));
                     _tcpListener.Start();
                     _tcpListener.BeginAcceptTcpClient(AcceptCallback, _tcpListener);
                     modeNetwork = Mode.Server;
@@ -151,12 +151,12 @@ namespace TcpSendFiles
         /// Попытка асинхронного подключения клиента к серверу
         /// </summary>
         /// <param name="ipserver">IP адрес сервера</param>
-        public void ConnectClient(string ipserver)
+        public void ConnectClient(string ipserver, string portserver)
         {
             if (modeNetwork == Mode.indeterminately)
             {
                 _tcpClient = new TcpClientData();
-                _tcpClient.tcpClient.BeginConnect(IPAddress.Parse(ipserver), 15000, new AsyncCallback(ConnectCallback), _tcpClient);
+                _tcpClient.tcpClient.BeginConnect(IPAddress.Parse(ipserver), Int32.Parse(portserver), new AsyncCallback(ConnectCallback), _tcpClient);
 
                 modeNetwork = Mode.Client;
             }
@@ -220,6 +220,7 @@ namespace TcpSendFiles
 
 
         public string SendFileName = null;
+        public string Path = null; //???
         public void SendData()
         {
             // Состав отсылаемого универсального сообщения
@@ -420,7 +421,7 @@ namespace TcpSendFiles
                     if (sc.filesize > 0)
                     {
                         // Создадим файл на основе полученной информации и массива байтов следующих за объектом информации
-                        FileStream fs = new FileStream(sc.filename, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, sc.filesize);
+                        FileStream fs = new FileStream(Path+sc.filename, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, sc.filesize);
                         do
                         {
                             temp = new byte[global.MAXBUFFER];
@@ -461,7 +462,7 @@ namespace TcpSendFiles
 
                     // Событие клиент отключился
                     if (Disconnected != null)
-                        Disconnected.BeginInvoke(this, "Клиент отключился!", null, null);
+                        Disconnected.BeginInvoke(this, "Клиент отключился", null, null);
                 }
             }
             catch (Exception e)
@@ -472,7 +473,7 @@ namespace TcpSendFiles
 
                 // Событие клиент отключился
                 if (Disconnected != null)
-                    Disconnected.BeginInvoke(this, "Клиент отключился аварийно!", null, null);
+                    Disconnected.BeginInvoke(this, "Клиент отключился аварийно", null, null);
 
                 SoundError();
 

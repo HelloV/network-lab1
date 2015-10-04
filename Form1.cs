@@ -36,7 +36,7 @@ namespace TcpSendFiles
         
         void _tcpmodule_Accept(object sender)
         {
-            ShowReceiveMessage("Клиент подключился!");
+            ShowReceiveMessage("Клиент подключился");
         }
 
         void _tcpmodule_Connected(object sender, string result)
@@ -66,12 +66,12 @@ namespace TcpSendFiles
 
         private void buttonStartServer_Click(object sender, EventArgs e)
         {
-            _tcpmodule.StartServer();
+            _tcpmodule.StartServer(textBoxServerPort.Text);
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
-            _tcpmodule.ConnectClient(textBoxIPserver.Text);
+            _tcpmodule.ConnectClient(textBoxIPserver.Text, textBoxServerPort.Text);
         }
 
         private void buttonSendData_Click(object sender, EventArgs e)
@@ -117,6 +117,25 @@ namespace TcpSendFiles
             }
         }
 
+        delegate void UpdateReceiveDelegate(string message);
+        public void UpdateData(string message)
+        {
+            if (time_label.InvokeRequired == true)
+            {
+                UpdateReceiveDelegate rd = new UpdateReceiveDelegate(UpdateData);
+
+                // Данный метод вызывается в дочернем потоке,
+                // ищет основной поток и выполняет делегат указанный в качестве параметра 
+                // в главном потоке, безопасно обновляя интерфейс формы.
+                Invoke(rd, new object[] { message });
+            }
+            else
+            {
+                // Если не требуется вызывать метод Invoke, обратимся напрямую к элементу формы.
+                listBox1.Items.Add((listBox1.Items.Count + 1).ToString() + ". " + message);
+            }
+        }
+
         delegate void BackColorFormDelegate(Color color);
         public void ChangeBackColor(Color color)
         {
@@ -132,6 +151,16 @@ namespace TcpSendFiles
             else
             {
                 this.BackColor = color;
+            }
+        }
+
+        private void DownloadPlace_button_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog dlg = new FolderBrowserDialog();
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                _tcpmodule.Path = dlg.SelectedPath;
+                //labelFileName.Text = dlg.SafeFileName;
             }
         }
         
