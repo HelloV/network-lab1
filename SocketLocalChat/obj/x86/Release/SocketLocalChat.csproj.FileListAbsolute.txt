@@ -1,0 +1,7 @@
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\bin\Release\SocketLocalChat.exe
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\bin\Release\SocketLocalChat.pdb
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\obj\x86\Release\SocketLocalChat.Form1.resources
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\obj\x86\Release\SocketLocalChat.Properties.Resources.resources
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\obj\x86\Release\SocketLocalChat.csproj.GenerateResource.Cache
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\obj\x86\Release\SocketLocalChat.exe
+C:\Users\Вадим\Downloads\SocketLocalChatAndFileSender\SocketLocalChatAndFileSender\SocketLocalChat\SocketLocalChat\obj\x86\Release\SocketLocalChat.pdb
