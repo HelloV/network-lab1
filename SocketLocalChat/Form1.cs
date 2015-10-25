@@ -18,9 +18,7 @@ namespace SocketLocalChat
 {
     public partial class Form1 : Form
     {
-
-        int QuantityByteInStep = 1024 * 2;
-
+        int QuantityByteInStep = 1024*2;
 
         private void IP_Enter(object sender, EventArgs e)
         {
@@ -47,12 +45,20 @@ namespace SocketLocalChat
         //Метод потока
         protected void Receiver()
         {
-            //Создаем Listener на порт "по умолчанию"
-            TcpListener Listen = new TcpListener(7000);
-            //Начинаем прослушку
-            Listen.Start();
             //и заведем заранее сокет
             Socket ReceiveSocket;
+            //Создаем Listener на порт "по умолчанию"
+            TcpListener Listen = new TcpListener(Int32.Parse(PORT.Text)-1);
+
+            try
+            {
+                //Начинаем прослушку
+                Listen.Start();
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
             while (true)
             {
                 try
@@ -73,26 +79,35 @@ namespace SocketLocalChat
                             //Читаем до тех пор, пока в очереди не останется данных
                         } while (ReceiveSocket.Available > 0);
                         //Добавляем изменения в ChatBox
-                        ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Received " + Encoding.Default.GetString(MessageR.ToArray()), ChatBox });
+                        ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Сообщение принято. " + Encoding.Default.GetString(MessageR.ToArray()), ChatBox });
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    MessageBox.Show(ex.Message + "Error place 1");
+                    MessageBox.Show(ex.Message);
+                    break;
                 }
 
             }
         }
 
-        /*//Метод потока
+        //Метод потока
         protected void FileReceiver()
         {
             //Создаем Listener на порт "по умолчанию"
-            TcpListener Listen = new TcpListener(6999);
-            //Начинаем прослушку
-            Listen.Start();
+            TcpListener Listen = new TcpListener(Int32.Parse(PORT.Text));
             //и заведем заранее сокет
             Socket ReceiveSocket;
+            try
+            {
+                //Начинаем прослушку
+                Listen.Start();
+            }
+            catch (System.Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+
             while (true)
             {
                 try
@@ -100,17 +115,21 @@ namespace SocketLocalChat
                     //Пришло сообщение
                     ReceiveSocket = Listen.AcceptSocket();
                     Byte[] Receive = new Byte[QuantityByteInStep];
-                    int percent = 0;
                     //Читать сообщение будем в поток
-                    int currentMemoryStream = 0;
-                    int numberFile = 0;
-                    MemoryStream[] MessageR = new MemoryStream[3];
-                    try
+                    using (MemoryStream MessageR = new MemoryStream())
                     {
+
                         //Количество считанных байт
                         Int32 ReceivedBytes;
                         Int32 FirestQuantityByteInStepBytes = 0;
                         String FilePath = "";
+                        //Если true, то первые QuantityByteInStep прочитаны
+                        bool firstBytes = false;
+
+                        string resFilePath = "";
+                        string resFileSize = "";
+
+
                         do
                         {//Собственно читаем
                             ReceivedBytes = ReceiveSocket.Receive(Receive, Receive.Length, 0);
@@ -120,314 +139,70 @@ namespace SocketLocalChat
                                 FirestQuantityByteInStepBytes += ReceivedBytes;
                                 Byte[] ToStr = Receive;
                                 //Учтем, что может возникнуть ситуация, когда они не могу передаться "сразу" все
-                                
                                 if (FirestQuantityByteInStepBytes > QuantityByteInStep)
                                 {
-                                    Int32 Start = FirestQuantityByteInStepBytes - ReceivedBytes; //Количество байт, которые не относятся к названию
-                                    Int32 CountToGet = QuantityByteInStep - Start; //Начиная с какой позиции в очередном сообщении закончилось передаваться название и начался файл
+                                    Int32 Start = FirestQuantityByteInStepBytes - ReceivedBytes;
+                                    Int32 CountToGet = QuantityByteInStep - Start;
                                     FirestQuantityByteInStepBytes = QuantityByteInStep;
                                     //В случае если было принято >QuantityByteInStep байт (двумя сообщениями к примеру)
                                     //Остаток (до QuantityByteInStep) записываем в "путь файла"
                                     ToStr = Receive.Take(CountToGet).ToArray();
                                     //А остальную часть - в будующий файл
                                     Receive = Receive.Skip(CountToGet).ToArray();
-                                    MessageR[currentMemoryStream] = new MemoryStream();
-                                    numberFile++;
-                                    MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);
-                                }
-                                 
-                                //Накапливаем имя файла
-                                FilePath += Encoding.Default.GetString(ToStr);
-                            }
-                            else
-                            {
-                                //и записываем в поток
-                                if (MessageR[currentMemoryStream] == null)
-                                {
-                                    numberFile++;
-                                    MessageR[currentMemoryStream] = new MemoryStream();
-                                }
-                                progressBar1.BeginInvoke(AcceptDelegate2, new object[] { percent = percent + 1, progressBar1 });
-                                System.Threading.Thread.Sleep(10);
-                                MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);
-                            }
-                            //Читаем до тех пор, пока в очереди не останется данных
-                        } while (ReceivedBytes == Receive.Length);
-                        //Убираем лишние байты
-                        String resFilePath = FilePath.Substring(0, FilePath.IndexOf('\0'));
-                        List<FileStream> File = new List<FileStream>();
-                        File.Add(new FileStream(resFilePath, FileMode.Create));
-                        try
-                        {
-                            //Записываем в файл
-                            File[0].Write(MessageR[currentMemoryStream].ToArray(), 0, MessageR[currentMemoryStream].ToArray().Length);
-                        }
-                        finally
-                        {
-                            foreach (FileStream file in File)
-                            {
-                                file.Dispose();
-                            }
-                        }
-                        
-                        //Уведомим пользователя
-                        ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Received: " + resFilePath, ChatBox });
-                    }
-                    finally
-                    {
-                        for (int i = 0; i < numberFile; i++)
-                        {
-                            MessageR[i].Dispose();
-                        }
-                    }
-                }
-                catch (System.Exception ex)
-                {
-                    MessageBox.Show(ex.Message + "Error place 2");
-                }
-
-            }
-        }
-        */
-        protected void FileReceiver()
-        {
-
-
-            //Создаем Listener на порт "по умолчанию"
-            TcpListener Listen = new TcpListener(6999);
-            //Начинаем прослушку
-            Listen.Start();
-            //и заведем заранее сокет
-            Socket ReceiveSocket;
-            while (true)
-            {
-                try
-                {
-                    //Пришло сообщение
-                    ReceiveSocket = Listen.AcceptSocket();
-                    Byte[] Receive = new Byte[QuantityByteInStep];
-                    double percent = 0;
-
-                    Form loading = new Form();
-                    System.Windows.Forms.ProgressBar progressBar = new ProgressBar();
-                    loading.Controls.Add(progressBar);
-                    loading.Name = "Form";
-                    loading.Text = "Loading";
-                    loading.AutoSize = true;
-                    progressBar.Location = new System.Drawing.Point(1, 1);
-                    progressBar.Name = "progressBar1";
-                    progressBar.Size = new System.Drawing.Size(258, 23);
-                    progressBar.TabIndex = 5;
-
-                    double newPercent = 0;
-                    //Читать сообщение будем в поток
-                    int currentMemoryStream = -1;
-                    int numberFile = 2;
-                    int currentReceivedBytes = QuantityByteInStep;
-                    MemoryStream[] MessageR = new MemoryStream[3];
-                    try
-                    {
-                        //Количество считанных байт
-                        Int32 ReceivedBytes = 0;
-                        Int32 FirestQuantityByteInStepBytes = 0;
-                        long allQuantityBytes = 0;
-                        String FilePath = "";
-                        int FileSize = 0;
-
-                        OneStepReceive(ReceiveSocket, ref ReceivedBytes, new Byte[0], ref Receive);
-                        FileSize = Convert.ToInt32(Encoding.Default.GetString(Receive));
-                        //OneStepReceive(ReceiveSocket, ref ReceivedBytes, Receive, ref Receive);
-                        //FilePath = Encoding.Default.GetString(Receive);
-
-                        //loading.Show();
-                        do
-                        {
-
-                            /*OneStepReceive(ReceiveSocket, ref ReceivedBytes, new Byte[0], ref Receive);
-                            if (MessageR[currentMemoryStream] == null)
-                            {
-                                numberFile++;
-                                MessageR[currentMemoryStream] = new MemoryStream();
-                            }
-                            newPercent = percent + (100 / ((double)FileSize / (double)QuantityByteInStep));
-                            if ((int)percent < (int)newPercent)
-                            {
-                                progressBar1.BeginInvoke(AcceptDelegate2, new object[] { (int)newPercent, progressBar1 });
-                                //progressBar.Value = (int)newPercent;
-                                System.Threading.Thread.Sleep(50);
-                            }
-                            percent = newPercent;
-                            MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);*/
-
-
-                            //OneStepReceive(Socket ReceiveSocket, Int32 ReceivedBytes, Byte[] initialData, Byte[] result);
-
-                            //Собственно читаем
-                            //ReceivedBytes = ReceiveSocket.Receive(Receive, Receive.Length, 0);
-                            ReceivedBytes = ReceiveSocket.Receive(Receive, currentReceivedBytes, 0);
-                            allQuantityBytes += ReceivedBytes;
-                            progressBar1.BeginInvoke(AcceptDelegate2, new object[] { (int)ReceivedBytes, progressBar1 });
-                            //Разбираем первые QuantityByteInStep байт
-                            if (FirestQuantityByteInStepBytes < QuantityByteInStep)
-                            {
-                                FirestQuantityByteInStepBytes += ReceivedBytes;
-                                Byte[] ToStr = Receive;
-                                //Учтем, что может возникнуть ситуация, когда они не могу передаться "сразу" все
-                                if (FirestQuantityByteInStepBytes > QuantityByteInStep)
-                                {
-                                    Int32 Start = FirestQuantityByteInStepBytes - ReceivedBytes; //Количество байт, которые не относятся к названию
-                                    Int32 CountToGet = QuantityByteInStep - Start; //Начиная с какой позиции в очередном сообщении закончилось передаваться название и начался файл
-                                    FirestQuantityByteInStepBytes = QuantityByteInStep;
-                                    //В случае если было принято >QuantityByteInStep байт (двумя сообщениями к примеру)
-                                    //Остаток (до QuantityByteInStep) записываем в "путь файла"
-                                    ToStr = Receive.Take(CountToGet).ToArray();
-                                    //А остальную часть - в будующий файл
-                                    Receive = Receive.Skip(CountToGet).ToArray();
-                                    MessageR[currentMemoryStream] = new MemoryStream();
-                                    numberFile++;
-                                    MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);
+                                    MessageR.Write(Receive, 0, ReceivedBytes);
+                                    firstBytes = true;
                                 }
                                 //Накапливаем имя файла
                                 FilePath += Encoding.Default.GetString(ToStr);
+
                             }
                             else
                             {
+                                if (firstBytes || FirestQuantityByteInStepBytes == QuantityByteInStep)
+                                {
+                                    //Уже можем прочитать имя и разме рфайла
+                                    //Убираем лишние байты
+                                    String resFilePathAndFileSize = FilePath.Substring(0, FilePath.IndexOf('\0'));
+                                    char[] separators = { '^' };
+                                    string[] words = resFilePathAndFileSize.Split(separators);
+                                    resFilePath = words[0];
+                                    resFileSize = words[1];
+                                    firstBytes = false;
+                                    FirestQuantityByteInStepBytes = QuantityByteInStep + 1;
+                                    ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Началось принятие файла. " + resFilePath, ChatBox });
+                                }
                                 //и записываем в поток
-                                newPercent = percent + (100 / ((double)FileSize / (double)QuantityByteInStep));
-                                if ((int)percent < (int)newPercent)
-                                {
-                                    progressBar1.BeginInvoke(AcceptDelegate2, new object[] { (int)newPercent, progressBar1 });
-                                    //progressBar.Value = (int)newPercent;
-                                    System.Threading.Thread.Sleep(50);
-                                }
-                                percent = newPercent;
-
-                                if (currentMemoryStream != -1 && MessageR[currentMemoryStream] == null)
-                                {
-                                    //numberFile++;
-                                    MessageR[currentMemoryStream] = new MemoryStream();
-                                }
-
-                                if (ReceivedBytes < QuantityByteInStep && ReceivedBytes > 0) //Прочитали меньше чем QuantityByteInStep
-                                {
-                                    if (currentReceivedBytes != QuantityByteInStep) //Оказывается мы и хотели читать меньше чем QuantityByteInStep
-                                    {
-                                        if (currentReceivedBytes == ReceivedBytes) //Прочли ровно столько, сколько хотели
-                                        {
-                                            currentReceivedBytes = QuantityByteInStep; //В следующий раз читаем сколько положено изначально
-                                            //next
-                                            currentMemoryStream = (currentMemoryStream + 1) % numberFile;
-                                        }
-                                        else
-                                        {
-                                            currentReceivedBytes = currentReceivedBytes - ReceivedBytes;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        currentReceivedBytes = currentReceivedBytes - ReceivedBytes;
-                                    }
-                                }
-                                else
-                                {
-                                    currentReceivedBytes = QuantityByteInStep; //В следующий раз читаем сколько положено изначально
-                                    //next
-                                    currentMemoryStream = (currentMemoryStream + 1) % numberFile;
-                                }
-
-                                if (currentMemoryStream != -1 && MessageR[currentMemoryStream] == null)
-                                {
-                                    //numberFile++;
-                                    MessageR[currentMemoryStream] = new MemoryStream();
-                                }
-
-                                MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);
+                                MessageR.Write(Receive, 0, ReceivedBytes);
                             }
                             //Читаем до тех пор, пока в очереди не останется данных
-                            //} while (ReceivedBytes == Receive.Length);
                         } while (ReceivedBytes > 0);
-                        System.Threading.Thread.Sleep(0);
-                        loading.Close();
 
-                        //Убираем лишние байты
-                        String resFilePath = FilePath.Substring(0, FilePath.IndexOf('\0'));
-                        List<FileStream> File = new List<FileStream>();
-                        File.Add(new FileStream(resFilePath, FileMode.Create));
-                        File.Add(new FileStream(resFilePath + "22222", FileMode.Create));
-                        try
+                        string tempFilePath;
+                        if (filePath != "")
+                        {
+                            tempFilePath = filePath + "//" + resFilePath;
+                        }
+                        else
+                        {
+                            tempFilePath = resFilePath;
+                        }
+
+                        using (var File = new FileStream(tempFilePath, FileMode.Create))
                         {
                             //Записываем в файл
-                            File[0].Write(MessageR[0].ToArray(), 0, MessageR[0].ToArray().Length);
-                            File[1].Write(MessageR[1].ToArray(), 0, MessageR[1].ToArray().Length);
-                        }
-                        finally
-                        {
-                            foreach (FileStream file in File)
-                            {
-                                file.Dispose();
-                            }
+                            File.Write(MessageR.ToArray(), 0, MessageR.ToArray().Length);
+
+                            //Уведомляем об этом
+                            ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Файл принят. " + File.Name, ChatBox });
                         }
 
-                        //Уведомим пользователя
-                        System.Threading.Thread.Sleep(0);
-                        ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Received: " + resFilePath + ". Original size: " + FileSize / 1024 + ". Size: " + allQuantityBytes / 1024, ChatBox });
-                    }
-                    finally
-                    {
-                        for (int i = 0; i < numberFile; i++)
-                        {
-                            MessageR[i].Dispose();
-                        }
                     }
                 }
                 catch (System.Exception ex)
                 {
-                    MessageBox.Show(ex.Message + "Error place 2");
+                    MessageBox.Show(ex.Message);
+                    break;
                 }
-
-            }
-        }
-
-        /// <summary>
-        /// Осуществляет приём ровно QuantityByteInStep байт
-        /// </summary>
-        /// <param name="Receive">Открытый сокет</param>
-        /// <param name="ReceivedBytes">Количество прочитанных байт</param>
-        /// <param name="initialData">Начало массива байтов</param>
-        /// <param name="result">Прочитанные байты</param>
-        protected void OneStepReceive(Socket ReceiveSocket, ref Int32 ReceivedBytes, Byte[] initialData, ref Byte[] result)
-        {
-            Byte[] Receive = new Byte[QuantityByteInStep];
-            Int32 FirestQuantityByteInStepBytes = 0;
-
-            ReceivedBytes = ReceiveSocket.Receive(Receive, Receive.Length - ReceivedBytes, 0);
-            //Разбираем первые QuantityByteInStep байт
-            if (FirestQuantityByteInStepBytes < QuantityByteInStep)
-            {
-                FirestQuantityByteInStepBytes += ReceivedBytes;
-                Byte[] ToStr = Receive;
-                //Учтем, что может возникнуть ситуация, когда они не могу передаться "сразу" все
-                /*if (FirestQuantityByteInStepBytes > QuantityByteInStep)
-                {
-                    Int32 Start = FirestQuantityByteInStepBytes - ReceivedBytes; //Количество байт, которые не относятся к названию
-                    Int32 CountToGet = QuantityByteInStep - Start; //Начиная с какой позиции в очередном сообщении закончилось передаваться название и начался файл
-                    FirestQuantityByteInStepBytes = QuantityByteInStep;
-                    //В случае если было принято >QuantityByteInStep байт (двумя сообщениями к примеру)
-                    //Остаток (до QuantityByteInStep) записываем в "путь файла"
-                    ToStr = Receive.Take(CountToGet).ToArray();
-                    //А остальную часть - в будующий файл
-                    Receive = Receive.Skip(CountToGet).ToArray();
-                    MessageR[currentMemoryStream] = new MemoryStream();
-                    numberFile++;
-                    MessageR[currentMemoryStream].Write(Receive, 0, ReceivedBytes);
-                }*/
-                //Накапливаем имя файла
-                //FilePath += Encoding.Default.GetString(ToStr);
-                result = Receive;
-            }
-            else
-            {
-                result = Receive.Concat(initialData).ToArray();
             }
         }
 
@@ -450,7 +225,7 @@ namespace SocketLocalChat
 
                 Byte[] SendBytes = Encoding.Default.GetBytes(MessageText);
                 //Создаем сокет, коннектимся
-                IPEndPoint EndPoint = new IPEndPoint(IPAddress.Parse(IP.Text), 7000);
+                IPEndPoint EndPoint = new IPEndPoint(IPAddress.Parse(IP.Text), Int32.Parse(PORT.Text)-1);
                 Socket Connector = new Socket(EndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 Connector.Connect(EndPoint);
                 Connector.Send(SendBytes);
@@ -463,63 +238,49 @@ namespace SocketLocalChat
             {
                 MessageBox.Show(ex.Message);
             }
-
-
-
-
-
-
         }
 
-        //Делегат доступа к контролам формы
-        delegate void SendMsg(String Text, RichTextBox Rtb);
-
-        SendMsg AcceptDelegate = (String Text, RichTextBox Rtb) =>
-            {
-                Rtb.Text += Text + "\n";
-            };
-
-        delegate void SendMsg2(int Text, ProgressBar Rtb);
-
-        SendMsg2 AcceptDelegate2 = (int Text, ProgressBar Rtb) =>
+        private void showForm(object paramform)
         {
-            if (Text <= 100)
-            {
-                Rtb.Value = Text;
-                //Rtb.Update();
-            }
-        };
-
-        //Обработчик кнопки
-        private void Send_Click(object sender, EventArgs e)
-        {
-
-            Thread SendThread = new Thread(new ParameterizedThreadStart(ThreadSend));
-            SendThread.Start(Message.Text);
-            SendThread.Priority = ThreadPriority.Lowest;
+            //OpenFileDialog file = paramfile as OpenFileDialog;
+            Form2 process = paramform as Form2;
+            //Form2 process = new Form2();
+            //process.fileName.Text = file.FileName;
+            //process.Show();
+            process.ShowDialog();
+            //while (process.progressBar.Value != 100)
+            //{
+            //Thread.Sleep(1000);
+            //}
+            //Application.Run(process);
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {//Отправляем файл
-            //Добавим на форму OpenFileDialog и вызовем его
-            if (openFileDialog1.ShowDialog() == DialogResult.OK)
-            {
-                Thread SendFileThread = new Thread(new ThreadStart(ThreadSendFile));
-                SendFileThread.Start();
-                SendFileThread.Priority = ThreadPriority.Highest;
-            }
-        }
-
-        void ThreadSendFile()
+        /// <summary>
+        /// Отправляет файл в потоке на IP, заданный в контроле IP
+        /// </summary>
+        void ThreadFileSend(object paramfile)
         {
+            //Получаем информацию о выбранном файле
+            OpenFileDialog file = paramfile as OpenFileDialog;
+            //Создаём и запускаем в отдельном потоке форму с информацией о передаче очередного файла
+            Form2 process = new Form2();
+            process.fileName.Text = file.FileName;
+            process.label5.Text = "0";
+            process.sec.Text = "0";
+            process.progressBar.Value = 1;
+            Thread processThread = new Thread(new ParameterizedThreadStart(showForm));
+            processThread.Name = "processThread";
+            process.myThread = processThread;
+            processThread.Start(process);
+
             try
             {
                 //Коннектимся
-                IPEndPoint EndPoint = new IPEndPoint(IPAddress.Parse(IP.Text), 6999);
+                IPEndPoint EndPoint = new IPEndPoint(IPAddress.Parse(IP.Text), Int32.Parse(PORT.Text));
                 Socket Connector = new Socket(EndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 Connector.Connect(EndPoint);
                 //Получаем имя из полного пути к файлу
-                StringBuilder FileName = new StringBuilder(openFileDialog1.FileName);
+                StringBuilder FileName = new StringBuilder(file.FileName);
                 //Выделяем имя файла
                 int index = FileName.Length - 1;
                 while (FileName[index] != '\\' && FileName[index] != '/')
@@ -533,77 +294,165 @@ namespace SocketLocalChat
 
                 //Записываем в лист
                 List<Byte> FirstQuantityByteInStepBytes = Encoding.Default.GetBytes(resFileName).ToList();
-                    
                 Int32 Diff = QuantityByteInStep - FirstQuantityByteInStepBytes.Count;
+
+                //Приписываем размер файла
+                long fileSize = (new FileInfo(file.FileName)).Length;
+                List<Byte> bytefileSize = Encoding.Default.GetBytes("^" + fileSize.ToString() + "^").ToList();
+                for (int i = 0; i < bytefileSize.Count; i++)
+                    FirstQuantityByteInStepBytes.Add(bytefileSize[i]);
+                Diff -= bytefileSize.Count;
+
                 //Остаток заполняем нулями
                 for (int i = 0; i < Diff; i++)
                     FirstQuantityByteInStepBytes.Add(0);
 
-                long fileSize = (new FileInfo(openFileDialog1.FileName)).Length;
-                List<Byte> FirstQuantityByteInStepBytes2 = Encoding.Default.GetBytes(fileSize.ToString()).ToList();
-                Diff = QuantityByteInStep - FirstQuantityByteInStepBytes2.Count;
-                //Остаток заполняем нулями
-                for (int i = 0; i < Diff; i++)
-                    FirstQuantityByteInStepBytes2.Add(0);
-
                 //Начинаем отправку данных
                 Byte[] ReadedBytes = new Byte[QuantityByteInStep];
-
-                FileStream FileStream2 = new FileStream(openFileDialog1.FileName, FileMode.Open);
-                FileStream FileStream3 = new FileStream(openFileDialog1.FileName + "2", FileMode.Open);
-                BinaryReader Reader2 = new BinaryReader(FileStream2);
-                BinaryReader Reader3 = new BinaryReader(FileStream3);
-
-                try
+                using (var FileStream = new FileStream(file.FileName, FileMode.Open))
                 {
-                    Int32 CurrentReadedBytesCount;
-                    //Вначале отправим размер и название файла
-                    Connector.Send(FirstQuantityByteInStepBytes2.ToArray());
-                    Connector.Send(FirstQuantityByteInStepBytes.ToArray());
-                    do
+                    using (var Reader = new BinaryReader(FileStream))
                     {
-                        //Затем по частям - файл
-                        CurrentReadedBytesCount = Reader2.Read(ReadedBytes, 0, ReadedBytes.Length);
-                        Connector.Send(ReadedBytes, CurrentReadedBytesCount, SocketFlags.None);
-
-                        if (CurrentReadedBytesCount != ReadedBytes.Length)
+                        Int32 CurrentReadedBytesCount;
+                        Int32 NumCurrentReadedBytesCount = 0;
+                        //Вначале отправим название файла
+                        Connector.Send(FirstQuantityByteInStepBytes.ToArray());
+                        do
                         {
-                            List<Byte> tempList = new List<Byte>();
-                            Diff = QuantityByteInStep - CurrentReadedBytesCount;
-                            //Остаток заполняем нулями
-                            for (int i = 0; i < Diff; i++)
-                                tempList.Add(0);
-                            Connector.Send(tempList.ToArray());
+                            //Затем по частям - файл
+                            CurrentReadedBytesCount = Reader.Read(ReadedBytes, 0, ReadedBytes.Length);
+                            Connector.Send(ReadedBytes, CurrentReadedBytesCount, SocketFlags.None);
+                            NumCurrentReadedBytesCount += CurrentReadedBytesCount;
+
+                            Thread.Sleep(1);
+                            process.progressBar.BeginInvoke(AcceptDelegatePB, new object[] { (int)(((double)NumCurrentReadedBytesCount / (double)fileSize) * 100), process.progressBar });
+                            process.sec.BeginInvoke(AcceptDelegate2, new object[] { NumCurrentReadedBytesCount.ToString() + " байт (" + (((double)NumCurrentReadedBytesCount / (double)fileSize) * 100).ToString() + "%)", process.sec });
+                            process.label5.BeginInvoke(AcceptDelegate2, new object[] { fileSize.ToString() + " байт", process.label5 });
                         }
-
-                        CurrentReadedBytesCount = Reader3.Read(ReadedBytes, 0, ReadedBytes.Length);
-                        Connector.Send(ReadedBytes, CurrentReadedBytesCount, SocketFlags.None);
+                        while (CurrentReadedBytesCount == ReadedBytes.Length);
                     }
-                    while (CurrentReadedBytesCount == ReadedBytes.Length);
-
-                }
-                finally
-                {
-                    FileStream2.Dispose();
-                    Reader2.Dispose();
                 }
                 //Завершаем передачу данных
                 Connector.Close();
             }
             catch (Exception ex)
             {
-                ChatBox.BeginInvoke(AcceptDelegate, new object[] { "Error: " + ex.Message, ChatBox });
+                MessageBox.Show(ex.Message);
             }
+            //processThread.Abort();
+        }
+
+        //Делегат доступа к контролам формы
+        delegate void SendMsg(String Text, RichTextBox Rtb);
+        delegate void SendMsg2(String Text, Label Rtb);
+        delegate void SetValue(int Value, ProgressBar PB);
+
+        SendMsg AcceptDelegate = (String Text, RichTextBox Rtb) =>
+        {
+            Rtb.Text += Text + "\n";
+        };
+
+        SendMsg2 AcceptDelegate2 = (String Text, Label Rtb) =>
+        {
+            Rtb.Text = Text;
+        };
+
+        SetValue AcceptDelegatePB = (int Value, ProgressBar PB) =>
+        {
+            if (Value <= 100)
+                PB.Value = Value;
+        };
+
+        //Обработчик кнопки
+        private void Send_Click(object sender, EventArgs e)
+        {
+            Thread SendMessThread = new Thread(new ParameterizedThreadStart(ThreadSend));
+            SendMessThread.Name = "SendMessThread";
+            SendMessThread.Start(Message.Text);
+            //new Thread(new ParameterizedThreadStart(ThreadSend)).Start(Message.Text);
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            //Добавим на форму OpenFileDialog и вызовем его
+            OpenFileDialog curFileDialog = new OpenFileDialog();
+            if (curFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Thread SendFileThread = new Thread(new ParameterizedThreadStart(ThreadFileSend));
+                SendFileThread.Name = "ThreadFileSend";
+                SendFileThread.Start(curFileDialog);
+                //SendFileThread.Priority = ThreadPriority.Highest;
+                //new Thread(new ParameterizedThreadStart(ThreadFileSend)).Name("ThreadFileSend").Start(curFileDialog);
+            }
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
+            //Сервер
+            button2.Enabled = false;
+            button3.Enabled = false;
+            // Получение имени компьютера.
+            String host = System.Net.Dns.GetHostName();
+            // Получение ip-адреса.
+            System.Net.IPAddress ip = System.Net.Dns.GetHostByName(host).AddressList[0];
+            IP.Text = ip.ToString();
+            IP.Enabled = false;
+            PORT.Enabled = false;
+            button4.Enabled = true;
+            button5.Enabled = true;
+
             //Создаем поток для приема сообщений
-            Thread ReceiverThread = new Thread(new ThreadStart(Receiver));
-            ReceiverThread.Start();
-            Thread FileReceiverThread = new Thread(new ThreadStart(FileReceiver));
-            FileReceiverThread.Start();
-            FileReceiverThread.Priority = ThreadPriority.Lowest;
+            Thread ThreadReceiver = new Thread(new ThreadStart(Receiver));
+            ThreadReceiver.Name = "ThreadReceiver";
+            ThreadReceiver.Start();
+
+            Thread ThreadFileReceiver = new Thread(new ThreadStart(FileReceiver));
+            ThreadFileReceiver.Name = "ThreadFileReceiver";
+            ThreadFileReceiver.Start();
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            //Клиент
+            button2.Enabled = false;
+            button3.Enabled = false;
+            IP.Enabled = false;
+            PORT.Enabled = false;
+            Send.Enabled = true;
+            button1.Enabled = true;
+            Message.Enabled = true;
+            button4.Enabled = true;
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            //Сброс
+            button2.Enabled = true;
+            button3.Enabled = true;
+            IP.Enabled = true;
+            PORT.Enabled = true;
+            Send.Enabled = false;
+            button1.Enabled = false;
+            Message.Enabled = false;
+            button5.Enabled = false;
+
+        }
+
+        private string filePath = "";
+        private void button5_Click(object sender, EventArgs e)
+        {
+            FolderBrowserDialog dlg = new FolderBrowserDialog();
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+            {
+                filePath = dlg.SelectedPath;
+                button5.Enabled = false;
+            }
+        }
+
     }
 }
